@@ -28,6 +28,7 @@
     <string name="menu_computer_label">コンピューター</string>
     <!-- 設定画面用文字列 -->
     <string name="settings_title">設定</string>
+    <string name="favorite_title">お気に入り</string>
     <string name="change_name_hint">表示名</string>
     <string name="menu_change_button_label">変更</string>
     <string name="menu_logout_label">ログアウト</string>
@@ -52,4 +53,8 @@
 
     <string name="send_answer_failure">投稿に失敗しました</string>
     <string name="answer_error_message">回答を入力してください</string>
+    <!--気に入り-->
+    <string name="delete_favorite_dialog_title">お気に入りの削除</string>
+    <string name="delete_favorite_dialog_message">お気に入りを削除しますか？</string>
+    <string name="empty_favorite">お気に入りはまだ登録されていません。</string>
 </resources>

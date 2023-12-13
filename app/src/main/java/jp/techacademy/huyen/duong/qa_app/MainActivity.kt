@@ -31,6 +31,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private val eventListener = object : ChildEventListener {
         override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
             val map = dataSnapshot.value as Map<*, *>
+            val favoriteStatus = map["favoriteStatus"] as? String ?: "0"
+            Log.d("FavoriteMain",""+favoriteStatus)
             val title = map["title"] as? String ?: ""
             val body = map["body"] as? String ?: ""
             val name = map["name"] as? String ?: ""
@@ -57,7 +59,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
 
-            val question = Question(
+            val question = Question(favoriteStatus.toInt(),
                 title, body, name, uid, dataSnapshot.key ?: "",
                 genre, bytes, answerArrayList
             )
@@ -172,6 +174,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         if (id == R.id.action_settings) {
             val intent = Intent(applicationContext, SettingActivity::class.java)
+            startActivity(intent)
+            return true
+        }else if (id == R.id.action_favorite) {
+            val intent = Intent(applicationContext, FavoriteQuestionActivity::class.java)
             startActivity(intent)
             return true
         }

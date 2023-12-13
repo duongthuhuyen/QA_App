@@ -4,6 +4,7 @@ import java.io.Serializable
 import java.util.ArrayList
 
 class Question(
+    var favoriteStatus: Int = 0, // 1: like, 0: unlike
     val title: String,
     val body: String,
     val name: String,
