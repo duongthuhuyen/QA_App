@@ -1,6 +1,7 @@
 package jp.techacademy.huyen.duong.qa_app
 
 import android.content.Context
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
@@ -21,6 +22,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var createAccountListener: OnCompleteListener<AuthResult>
     private lateinit var loginListener: OnCompleteListener<AuthResult>
     private lateinit var databaseReference: DatabaseReference
+    private lateinit var adapter: QuestionDetailListAdapter
 
     // アカウント作成時にフラグを立て、ログイン処理後に名前をFirebaseに保存する
     private var isCreateAccount = false
@@ -89,9 +91,11 @@ class LoginActivity : AppCompatActivity() {
 
                 // プログレスバーを非表示にする
                 binding.progressBar.visibility = View.GONE
-
                 // Activityを閉じる
-                finish()
+                //finish()
+                val intent = Intent(applicationContext, MainActivity::class.java)
+                //intent.putExtra("question", questionArrayList[position])
+                startActivity(intent)
 
             } else {
                 // 失敗した場合
