@@ -73,35 +73,38 @@ class QuestionDetailListAdapter(context: Context, private val question: Question
                     override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
                         //TODO("Not yet implemented")
                         val map = snapshot.value as Map<*, *>
-                        val favoriteStatus = map["favoriteStatus"] as? String ?: "0"
-                        binding.favoriteImageView.apply {
-                            // お気に入り状態を取得
-                            var isFavorite = favoriteStatus.toInt()
-                            // 白抜きの星を設定
-                            setImageResource(if (isFavorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
+                        val quid = snapshot.key ?: ""
+                        if (quid == question.questionUid) {
+                            val favoriteStatus = map["favoriteStatus"] as? String ?: "0"
+                            binding.favoriteImageView.apply {
+                                // お気に入り状態を取得
+                                var isFavorite = favoriteStatus.toInt()
+                                // 白抜きの星を設定
+                                setImageResource(if (isFavorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
 
-                            // 星をタップした時の処理
-                            setOnClickListener {
-                                if (isFavorite == 0) {
-                                    addFavorite(q)
-                                    setImageResource(R.drawable.ic_star)
-                                    isFavorite = 1
-                                    q.favoriteStatus = 1
-                                } else {
+                                // 星をタップした時の処理
+                                setOnClickListener {
+                                    if (isFavorite == 0) {
+                                        addFavorite(q)
+                                        setImageResource(R.drawable.ic_star)
+                                        isFavorite = 1
+                                        q.favoriteStatus = 1
+                                    } else {
 
-                                    // adapter.onClickAddFavorite?.invoke(shop)
-                                    AlertDialog.Builder(context)
-                                        .setTitle(R.string.delete_favorite_dialog_title)
-                                        .setMessage(R.string.delete_favorite_dialog_message)
-                                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                                            deleteFavorite(q)
-                                            setImageResource(R.drawable.ic_star_border)
-                                            isFavorite = 0
-                                            q.favoriteStatus = 0
-                                        }
-                                        .setNegativeButton(android.R.string.cancel) { _, _ -> }
-                                        .create()
-                                        .show()
+                                        // adapter.onClickAddFavorite?.invoke(shop)
+                                        AlertDialog.Builder(context)
+                                            .setTitle(R.string.delete_favorite_dialog_title)
+                                            .setMessage(R.string.delete_favorite_dialog_message)
+                                            .setPositiveButton(android.R.string.ok) { _, _ ->
+                                                deleteFavorite(q)
+                                                setImageResource(R.drawable.ic_star_border)
+                                                isFavorite = 0
+                                                q.favoriteStatus = 0
+                                            }
+                                            .setNegativeButton(android.R.string.cancel) { _, _ -> }
+                                            .create()
+                                            .show()
+                                    }
                                 }
                             }
                         }
