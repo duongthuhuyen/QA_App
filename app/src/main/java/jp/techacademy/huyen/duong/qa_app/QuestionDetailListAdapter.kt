@@ -10,13 +10,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import jp.techacademy.huyen.duong.qa_app.databinding.ListAnswerBinding
 import jp.techacademy.huyen.duong.qa_app.databinding.ListQuestionDetailBinding
 import kotlin.contracts.contract
 
-class QuestionDetailListAdapter(context: Context, private val question: Question) : BaseAdapter() {
+class QuestionDetailListAdapter(context: Context, private val question: Question) : BaseAdapter(), DatabaseReference.CompletionListener {
     private lateinit var databaseReference: DatabaseReference
     companion object {
         private const val TYPE_QUESTION = 0
@@ -24,6 +25,7 @@ class QuestionDetailListAdapter(context: Context, private val question: Question
     }
 
     private var layoutInflater: LayoutInflater
+    private var listQidFavorite: ArrayList<String> = arrayListOf()
 
     init {
         layoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
@@ -65,72 +67,61 @@ class QuestionDetailListAdapter(context: Context, private val question: Question
             // ログイン済みのユーザーを取得する
             val user = FirebaseAuth.getInstance().currentUser
             if (user != null) {
-                var q = question
+                var uid = user.uid
                 //checkFavorite()
                 databaseReference = FirebaseDatabase.getInstance().reference
-                var genreRef: DatabaseReference = databaseReference.child(ContentsPATH).child(question.genre.toString())
-                genreRef!!.addChildEventListener(object : ChildEventListener {
-                    override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
-                        //TODO("Not yet implemented")
-                        val map = snapshot.value as Map<*, *>
-                        val quid = snapshot.key ?: ""
-                        if (quid == question.questionUid) {
-                            val favoriteStatus = map["favoriteStatus"] as? String ?: "0"
-                            binding.favoriteImageView.apply {
-                                // お気に入り状態を取得
-                                var isFavorite = favoriteStatus.toInt()
-                                // 白抜きの星を設定
-                                setImageResource(if (isFavorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
+                var genreRef: DatabaseReference = databaseReference.child(FavoritePATH).child(uid)
+                var a = FirebaseDatabase.getInstance().getReference("favorites")
+                var query: Query = databaseReference.child(FavoritePATH).child(uid).orderByChild("quid").equalTo(question.questionUid)
+                genreRef.addChildEventListener(object : ChildEventListener {
+                    override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
+                        var isFavorite = 0
+                        if (dataSnapshot.exists())
+                        {
+                            isFavorite = 1
+                        }
+//                        dataSnapshot.key?.let { listQidFavorite.add(it) }
+//                        Log.d("List favorite length: ",""+listQidFavorite.size)
+//                        if (question.questionUid in listQidFavorite) {
+//                            isFavorite = 1
+//                        }
 
-                                // 星をタップした時の処理
-                                setOnClickListener {
-                                    if (isFavorite == 0) {
-                                        addFavorite(q)
-                                        setImageResource(R.drawable.ic_star)
-                                        isFavorite = 1
-                                        q.favoriteStatus = 1
-                                    } else {
+                        binding.favoriteImageView.apply {
 
-                                        // adapter.onClickAddFavorite?.invoke(shop)
-                                        AlertDialog.Builder(context)
-                                            .setTitle(R.string.delete_favorite_dialog_title)
-                                            .setMessage(R.string.delete_favorite_dialog_message)
-                                            .setPositiveButton(android.R.string.ok) { _, _ ->
-                                                deleteFavorite(q)
-                                                setImageResource(R.drawable.ic_star_border)
-                                                isFavorite = 0
-                                                q.favoriteStatus = 0
-                                            }
-                                            .setNegativeButton(android.R.string.cancel) { _, _ -> }
-                                            .create()
-                                            .show()
-                                    }
+                            // 白抜きの星を設定
+                            setImageResource(if (isFavorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
+
+                            // 星をタップした時の処理
+                            setOnClickListener {
+                                if (isFavorite == 0) {
+                                    addFavorite(question)
+                                    setImageResource(R.drawable.ic_star)
+                                    isFavorite = 1
+                                } else {
+
+                                    // adapter.onClickAddFavorite?.invoke(shop)
+                                    AlertDialog.Builder(context)
+                                        .setTitle(R.string.delete_favorite_dialog_title)
+                                        .setMessage(R.string.delete_favorite_dialog_message)
+                                        .setPositiveButton(android.R.string.ok) { _, _ ->
+                                            deleteFavorite(question)
+                                            setImageResource(R.drawable.ic_star_border)
+                                            isFavorite = 0
+                                        }
+                                        .setNegativeButton(android.R.string.cancel) { _, _ -> }
+                                        .create()
+                                        .show()
                                 }
                             }
                         }
                     }
 
-                    override fun onChildChanged(
-                        snapshot: DataSnapshot,
-                        previousChildName: String?
-                    ) {
-                       // TODO("Not yet implemented")
-                    }
+                    override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {}
 
-                    override fun onChildRemoved(snapshot: DataSnapshot) {
-                        //TODO("Not yet implemented")
-                    }
-
-                    override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {
-                        //TODO("Not yet implemented")
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                        //TODO("Not yet implemented")
-                    }
-
+                    override fun onChildRemoved(p0: DataSnapshot) {}
+                    override fun onChildMoved(p0: DataSnapshot, p1: String?) {}
+                    override fun onCancelled(p0: DatabaseError) {}
                 })
-
             }
             binding.bodyTextView.text = question.body
             binding.nameTextView.text = question.name
@@ -160,14 +151,35 @@ class QuestionDetailListAdapter(context: Context, private val question: Question
     }
     fun addFavorite(question: Question) {
         databaseReference = FirebaseDatabase.getInstance().reference
-        val contentref = databaseReference.child(ContentsPATH).child(question.genre.toString())
-            .child(question.questionUid)
-       contentref.child("favoriteStatus").setValue("1")
+        val data = HashMap<String, String>()
+        // UID
+        val uid = FirebaseAuth.getInstance().currentUser!!.uid
+        val genreRef = databaseReference.child(FavoritePATH).child(uid)
+        data["quid"] = question.questionUid
+        data["title"] = question.title
+        data["body"] = question.body
+        data["name"] = question.name
+        data["uid"] = uid
+        if (question.imageBytes != null) {
+            val bitmapString =
+                Base64.encodeToString(question.imageBytes, Base64.DEFAULT)
+            data["image"] = bitmapString
+        }
+        genreRef.push().setValue(data,this)
     }
     fun deleteFavorite(question: Question) {
         databaseReference = FirebaseDatabase.getInstance().reference
-        databaseReference.child(ContentsPATH).child(question.genre.toString())
-            .child(question.questionUid).child("favoriteStatus").setValue("0")
+        val data = HashMap<String, String>()
+        // UID
+        val uid = FirebaseAuth.getInstance().currentUser!!.uid
+        val ref = databaseReference.child(FavoritePATH).child(uid).child(question.questionUid)
+        ref.setValue(null)
+    }
+    override fun onComplete(databaseError: DatabaseError?, databaseReference: DatabaseReference) {
+
+        if (databaseError == null) {
+        } else {
+           Log.d("success","success!")
+        }
     }
 }
-const val KEY_RESULT = "key_result"
