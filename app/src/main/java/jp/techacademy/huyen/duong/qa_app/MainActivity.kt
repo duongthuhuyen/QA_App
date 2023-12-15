@@ -7,6 +7,9 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.ActionBarDrawerToggle // 追加
 import androidx.core.view.GravityCompat // 追加
 import com.google.android.material.navigation.NavigationView // 追加
@@ -27,6 +30,23 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var adapter: QuestionsListAdapter
 
     private var genreRef: DatabaseReference? = null
+    //異なるActivity間で通信
+    var resultLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result: ActivityResult ->
+        if (result.resultCode == RESULT_OK) {
+            val intent = result.data
+            if (intent != null) {
+                val res = intent.getStringExtra(KEY_RESULT).toString()
+                if (res == "OK") {
+                    genre = 1
+                    val navigationView = findViewById<NavigationView>(R.id.nav_view)
+
+                    onNavigationItemSelected(navigationView.menu.getItem(0))
+                }
+            }
+        }
+    }
 
     private val eventListener = object : ChildEventListener {
         override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
@@ -98,13 +118,92 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         override fun onCancelled(p0: DatabaseError) {}
     }
     // ----- 追加:ここまで -----
+    private val eventListenerFavorite = object : ChildEventListener {
+        override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
+            val map = dataSnapshot.value as Map<*, *>
+            val qid = map["title"] as? String ?: ""
+            val favoriteStatus = map["favoriteStatus"] as? String ?: "0"
+            Log.d("Test",qid+": "+favoriteStatus)
+            if (favoriteStatus.toInt() == 1) {
+                val title = map["title"] as? String ?: ""
+                val body = map["body"] as? String ?: ""
+                val name = map["name"] as? String ?: ""
+                val uid = map["uid"] as? String ?: ""
+                val imageString = map["image"] as? String ?: ""
+                val bytes =
+                    if (imageString.isNotEmpty()) {
+                        Base64.decode(imageString, Base64.DEFAULT)
+                    } else {
+                        byteArrayOf()
+                    }
+
+                val answerArrayList = ArrayList<Answer>()
+                val answerMap = map["answers"] as Map<*, *>?
+                if (answerMap != null) {
+                    for (key in answerMap.keys) {
+                        val map1 = answerMap[key] as Map<*, *>
+                        val map1Body = map1["body"] as? String ?: ""
+                        val map1Name = map1["name"] as? String ?: ""
+                        val map1Uid = map1["uid"] as? String ?: ""
+                        val map1AnswerUid = key as? String ?: ""
+                        val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
+                        answerArrayList.add(answer)
+                    }
+                }
+
+                val question = Question(
+                    favoriteStatus.toInt(),
+                    title, body, name, uid, dataSnapshot.key ?: "",
+                    genre, bytes, answerArrayList
+                )
+                questionArrayList.add(question)
+                Log.d("Favorite List",""+questionArrayList.size)
+                adapter.notifyDataSetChanged()
+            }
+        }
+
+        override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {
+            val map = dataSnapshot.value as Map<*, *>
+
+            // 変更があったQuestionを探す
+            for (question in questionArrayList) {
+                if (dataSnapshot.key.equals(question.questionUid)) {
+                    // このアプリで変更がある可能性があるのは回答（Answer)のみ
+                    question.answers.clear()
+                    val answerMap = map["answers"] as Map<*, *>?
+                    if (answerMap != null) {
+                        for (key in answerMap.keys) {
+                            val map1 = answerMap[key] as Map<*, *>
+                            val map1Body = map1["body"] as? String ?: ""
+                            val map1Name = map1["name"] as? String ?: ""
+                            val map1Uid = map1["uid"] as? String ?: ""
+                            val map1AnswerUid = key as? String ?: ""
+                            val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
+                            question.answers.add(answer)
+                        }
+                    }
+
+                    adapter.notifyDataSetChanged()
+                }
+            }
+        }
+
+        override fun onChildRemoved(p0: DataSnapshot) {}
+        override fun onChildMoved(p0: DataSnapshot, p1: String?) {}
+        override fun onCancelled(p0: DatabaseError) {}
+    }
+    // ----- 追加:ここまで -----
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         setSupportActionBar(binding.content.toolbar)
-
+        val user = FirebaseAuth.getInstance().currentUser
+        binding.navView.menu.getItem(4).setVisible(false)
+        if (user != null) {
+            binding.navView.menu.getItem(4).setVisible(true)
+        }
         binding.content.fab.setOnClickListener {
             // ジャンルを選択していない場合はメッセージを表示するだけ
             Log.d("Genre",""+genre)
@@ -173,12 +272,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val id = item.itemId
 
         if (id == R.id.action_settings) {
-            val intent = Intent(applicationContext, SettingActivity::class.java)
-            startActivity(intent)
-            return true
-        }else if (id == R.id.action_favorite) {
-            val intent = Intent(applicationContext, FavoriteQuestionActivity::class.java)
-            startActivity(intent)
+            val intent = Intent(this, SettingActivity::class.java)
+            resultLauncher.launch(intent)
+//            val intent = Intent(applicationContext, SettingActivity::class.java)
+//            startActivity(intent)
             return true
         }
 
@@ -191,6 +288,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // 1:趣味を既定の選択とする
         if(genre == 0) {
             onNavigationItemSelected(navigationView.menu.getItem(0))
+        }
+        Log.d("onResume", "hiii")
+        val user = FirebaseAuth.getInstance().currentUser
+        binding.navView.menu.getItem(4).setVisible(false)
+        if (user != null) {
+            binding.navView.menu.getItem(4).setVisible(true)
         }
     }
 
@@ -213,6 +316,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 binding.content.toolbar.title = getString(R.string.menu_computer_label)
                 genre = 4
             }
+            R.id.nav_favorite -> {
+                binding.content.toolbar.title = getString(R.string.favorite_title)
+                genre = 5
+            }
         }
 
         binding.drawerLayout.closeDrawer(GravityCompat.START)
@@ -226,9 +333,19 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         if (genreRef != null) {
             genreRef!!.removeEventListener(eventListener)
         }
-        genreRef = databaseReference.child(ContentsPATH).child(genre.toString())
-        genreRef!!.addChildEventListener(eventListener)
-        // ----- 追加:ここまで -----
+        if (genre < 5) {
+            genreRef = databaseReference.child(ContentsPATH).child(genre.toString())
+            genreRef!!.addChildEventListener(eventListener)
+            // ----- 追加:ここまで -----
+            //return true
+        } else if (genre == 5) {
+            for (i in 1..4) {
+                genre = i
+                genreRef = databaseReference.child(ContentsPATH).child(i.toString())
+                genreRef!!.addChildEventListener(eventListenerFavorite)
+                //return true
+            }
+        }
         return true
     }
     // ----- 追加:ここまで
