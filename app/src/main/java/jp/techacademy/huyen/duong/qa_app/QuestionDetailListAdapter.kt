@@ -70,59 +70,61 @@ class QuestionDetailListAdapter(context: Context, private val question: Question
                 var uid = user.uid
                 //checkFavorite()
                 databaseReference = FirebaseDatabase.getInstance().reference
-                var genreRef: DatabaseReference = databaseReference.child(FavoritePATH).child(uid)
-                var a = FirebaseDatabase.getInstance().getReference("favorites")
-                var query: Query = databaseReference.child(FavoritePATH).child(uid).orderByChild("quid").equalTo(question.questionUid)
+                var genreRef: DatabaseReference = databaseReference.child(FavoritePATH).child(user.uid)
+                var keys: ArrayList<String> = arrayListOf()
+                var listQId : ArrayList<String> = arrayListOf()
+                var listUid: ArrayList<String> = arrayListOf()
+                var isFavorite = 0
                 genreRef.addChildEventListener(object : ChildEventListener {
                     override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
-                        var isFavorite = 0
-                        if (dataSnapshot.exists())
-                        {
+                        dataSnapshot.key?.let { listQId.add(it) }
+                        if(question.questionUid in listQId) {
                             isFavorite = 1
                         }
-//                        dataSnapshot.key?.let { listQidFavorite.add(it) }
-//                        Log.d("List favorite length: ",""+listQidFavorite.size)
-//                        if (question.questionUid in listQidFavorite) {
-//                            isFavorite = 1
-//                        }
-
                         binding.favoriteImageView.apply {
 
                             // 白抜きの星を設定
                             setImageResource(if (isFavorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
-
-                            // 星をタップした時の処理
-                            setOnClickListener {
-                                if (isFavorite == 0) {
-                                    addFavorite(question)
-                                    setImageResource(R.drawable.ic_star)
-                                    isFavorite = 1
-                                } else {
-
-                                    // adapter.onClickAddFavorite?.invoke(shop)
-                                    AlertDialog.Builder(context)
-                                        .setTitle(R.string.delete_favorite_dialog_title)
-                                        .setMessage(R.string.delete_favorite_dialog_message)
-                                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                                            deleteFavorite(question)
-                                            setImageResource(R.drawable.ic_star_border)
-                                            isFavorite = 0
-                                        }
-                                        .setNegativeButton(android.R.string.cancel) { _, _ -> }
-                                        .create()
-                                        .show()
-                                }
-                            }
                         }
                     }
-
                     override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {}
 
                     override fun onChildRemoved(p0: DataSnapshot) {}
                     override fun onChildMoved(p0: DataSnapshot, p1: String?) {}
-                    override fun onCancelled(p0: DatabaseError) {}
+                    override fun onCancelled(p0: DatabaseError) {
+                    }
                 })
+
+                binding.favoriteImageView.apply {
+                    if (isFavorite == 0) {
+                        setImageResource(R.drawable.ic_star_border)
+                    }
+
+                    // 星をタップした時の処理
+                    setOnClickListener {
+                        if (isFavorite == 0) {
+                            addFavorite(question)
+                            setImageResource(R.drawable.ic_star)
+                            isFavorite = 1
+                        } else {
+
+                            // adapter.onClickAddFavorite?.invoke(shop)
+                            AlertDialog.Builder(context)
+                                .setTitle(R.string.delete_favorite_dialog_title)
+                                .setMessage(R.string.delete_favorite_dialog_message)
+                                .setPositiveButton(android.R.string.ok) { _, _ ->
+                                    deleteFavorite(question)
+                                    setImageResource(R.drawable.ic_star_border)
+                                    isFavorite = 0
+                                }
+                                .setNegativeButton(android.R.string.cancel) { _, _ -> }
+                                .create()
+                                .show()
+                        }
+                    }
+                }
             }
+
             binding.bodyTextView.text = question.body
             binding.nameTextView.text = question.name
 
@@ -154,7 +156,7 @@ class QuestionDetailListAdapter(context: Context, private val question: Question
         val data = HashMap<String, String>()
         // UID
         val uid = FirebaseAuth.getInstance().currentUser!!.uid
-        val genreRef = databaseReference.child(FavoritePATH).child(uid)
+        val genreRef = databaseReference.child(FavoritePATH).child(uid).child(question.questionUid)
         data["quid"] = question.questionUid
         data["title"] = question.title
         data["body"] = question.body
@@ -173,10 +175,10 @@ class QuestionDetailListAdapter(context: Context, private val question: Question
         // UID
         val uid = FirebaseAuth.getInstance().currentUser!!.uid
         val ref = databaseReference.child(FavoritePATH).child(uid).child(question.questionUid)
-        ref.setValue(null)
+        ref.ref.removeValue()
+        //ref.setValue(null)
     }
     override fun onComplete(databaseError: DatabaseError?, databaseReference: DatabaseReference) {
-
         if (databaseError == null) {
         } else {
            Log.d("success","success!")

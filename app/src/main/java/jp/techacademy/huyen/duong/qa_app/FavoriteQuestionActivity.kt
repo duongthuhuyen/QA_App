@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import jp.techacademy.huyen.duong.qa_app.databinding.ActivityFavoriteQuestionBinding
 import jp.techacademy.huyen.duong.qa_app.databinding.ActivityMainBinding
@@ -21,11 +22,12 @@ class FavoriteQuestionActivity : AppCompatActivity() {
 
     private val eventListener = object : ChildEventListener {
         override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
-            val map = dataSnapshot.value as Map<*, *>
-            val qid = map["title"] as? String ?: ""
-            val favoriteStatus = map["favoriteStatus"] as? String ?: "0"
-            Log.d("Test",qid+": "+favoriteStatus)
-            if (favoriteStatus.toInt() == 1) {
+            val quid = dataSnapshot?.key
+            if(quid != null) {
+            val mapp = dataSnapshot.child(quid)
+            val map = mapp?.value as Map<*, *>
+            if(map != null) {
+                val qid = map["quid"] as? String ?: ""
                 val title = map["title"] as? String ?: ""
                 val body = map["body"] as? String ?: ""
                 val name = map["name"] as? String ?: ""
@@ -39,54 +41,19 @@ class FavoriteQuestionActivity : AppCompatActivity() {
                     }
 
                 val answerArrayList = ArrayList<Answer>()
-                val answerMap = map["answers"] as Map<*, *>?
-                if (answerMap != null) {
-                    for (key in answerMap.keys) {
-                        val map1 = answerMap[key] as Map<*, *>
-                        val map1Body = map1["body"] as? String ?: ""
-                        val map1Name = map1["name"] as? String ?: ""
-                        val map1Uid = map1["uid"] as? String ?: ""
-                        val map1AnswerUid = key as? String ?: ""
-                        val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
-                        answerArrayList.add(answer)
-                    }
-                }
 
                 val question = Question(
-                    favoriteStatus.toInt(),
-                    title, body, name, uid, dataSnapshot.key ?: "",
+                    title, body, name, uid, qid,
                     genre, bytes, answerArrayList
                 )
                 questionArrayList.add(question)
-                Log.d("Favorite List",""+questionArrayList.size)
+                Log.d("Favorite List", "" + questionArrayList.size)
                 adapter.notifyDataSetChanged()
+            }}
             }
-        }
+
 
         override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {
-            val map = dataSnapshot.value as Map<*, *>
-
-            // 変更があったQuestionを探す
-            for (question in questionArrayList) {
-                if (dataSnapshot.key.equals(question.questionUid)) {
-                    // このアプリで変更がある可能性があるのは回答（Answer)のみ
-                    question.answers.clear()
-                    val answerMap = map["answers"] as Map<*, *>?
-                    if (answerMap != null) {
-                        for (key in answerMap.keys) {
-                            val map1 = answerMap[key] as Map<*, *>
-                            val map1Body = map1["body"] as? String ?: ""
-                            val map1Name = map1["name"] as? String ?: ""
-                            val map1Uid = map1["uid"] as? String ?: ""
-                            val map1AnswerUid = key as? String ?: ""
-                            val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
-                            question.answers.add(answer)
-                        }
-                    }
-
-                    adapter.notifyDataSetChanged()
-                }
-            }
         }
 
         override fun onChildRemoved(p0: DataSnapshot) {}
@@ -103,40 +70,20 @@ class FavoriteQuestionActivity : AppCompatActivity() {
 //        // ListViewの準備
         adapter = QuestionsListAdapter(this)
         questionArrayList = ArrayList()
-//        //adapter.notifyDataSetChanged()
-       // questionArrayList.clear()
        adapter.setQuestionArrayList(questionArrayList)
         binding.content.listView.adapter = adapter
 
         if (genreRef != null) {
             genreRef!!.removeEventListener(eventListener)
         }
-        for (i in 1..4) {
-            genre = i
-            genreRef = databaseReference.child(ContentsPATH).child(i.toString())
+
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user != null) {
+            var userId = user.uid
+            genreRef = databaseReference.child(FavoritePATH).child(userId)
             genreRef!!.addChildEventListener(eventListener)
         }
-        Log.d("List favorite test ",""+questionArrayList.size)
-        // ----- 追加:ここまで -----
-    }
 
-    override fun onResume() {
-        super.onResume()
-        // ----- 追加:ここから -----
-        // 質問のリストをクリアしてから再度Adapterにセットし、AdapterをListViewにセットし直す
-//        questionArrayList.clear()
-//        adapter.setQuestionArrayList(questionArrayList)
-//        binding.content.listView.adapter = adapter
-//
-//        // 選択したジャンルにリスナーを登録する
-//        if (genreRef != null) {
-//            genreRef!!.removeEventListener(eventListener)
-//        }
-//        for (i in 1..4) {
-//            genre = i
-//            genreRef = databaseReference.child(ContentsPATH).child(i.toString())
-//            genreRef!!.addChildEventListener(eventListener)
-//        }
         // ----- 追加:ここまで -----
     }
 }

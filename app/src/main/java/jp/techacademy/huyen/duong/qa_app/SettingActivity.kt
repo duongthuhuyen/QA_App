@@ -1,8 +1,10 @@
 package jp.techacademy.huyen.duong.qa_app
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.inputmethod.InputMethodManager
+import androidx.activity.addCallback
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
@@ -16,6 +18,9 @@ class SettingActivity : AppCompatActivity() {
     private lateinit var databaseReference: DatabaseReference
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        onBackPressedDispatcher.addCallback {
+            mainActivityBack()
+        }
         super.onCreate(savedInstanceState)
         binding = ActivitySettingBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -67,4 +72,11 @@ class SettingActivity : AppCompatActivity() {
                 .show()
         }
     }
+    fun mainActivityBack() {
+        val intentSub = Intent()
+        intentSub.putExtra(KEY_RESULT, "OK")
+        setResult(RESULT_OK, intentSub)
+        finish()
+    }
 }
+const val KEY_RESULT = "key_result"
